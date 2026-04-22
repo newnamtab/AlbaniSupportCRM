@@ -1,7 +1,37 @@
-﻿@inherits LayoutComponentBase
+﻿@using WebApp.Services
 
-<WebApp.Components.NavBar/>
+@inherits LayoutComponentBase
+@inject IAccountService AccountService
+@inject NavigationManager NavigationManager
 
-<main>
-    @Body
-</main>
+@if (LoggedIn)
+{
+    <!-- nav -->
+    <WebApp.Components.NavBar />
+    
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+        <div class="navbar-nav">
+            <NavLink href="" Match="NavLinkMatch.All" class="nav-item nav-link">Home</NavLink>
+            <NavLink href="users" class="nav-item nav-link">Users</NavLink>
+            <NavLink href="account/logout" class="nav-item nav-link">Logout</NavLink>
+        </div>
+    </nav>
+}
+else
+{
+    <WebApp.Components.NavBar />
+}
+
+<div class="app-container @(LoggedIn ? "bg-light" : "")">
+    <WebApp.Shared.Alert/>
+    <main>
+        @Body
+    </main>
+</div>
+
+@code {
+    public bool LoggedIn 
+    {
+        get { return AccountService.User != null; }
+    }
+}
