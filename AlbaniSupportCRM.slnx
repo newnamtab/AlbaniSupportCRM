@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="AlbaniSupportCRM/API.csproj" />
+  <Project Path="WebApp/WebApp.csproj" Id="c57eaca3-e50c-414d-80a6-fcee191ce058" />
 </Solution>
