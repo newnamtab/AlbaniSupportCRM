@@ -1,0 +1,33 @@
+@using System.Collections.Generic
+
+<nav class="navbar">
+    <div class="navbar-container">
+        <div class="navbar-logo">
+            <img src="images/logo.svg" alt="Logo" class="logo-image" />
+        </div>
+        <div class="navbar-dropdown">
+            <button class="dropdown-button" @onclick="ToggleDropdown">
+                navigation dropdown
+                <span class="dropdown-arrow">▼</span>
+            </button>
+            @if (isDropdownOpen)
+            {
+                <div class="dropdown-menu">
+                    <a href="#" class="dropdown-item">Dropdown item 1</a>
+                    <a href="#" class="dropdown-item">Dropdown item 2</a>
+                    <a href="#" class="dropdown-item">Dropdown item 3</a>
+                    <a href="#" class="dropdown-item">Dropdown item 4</a>
+                </div>
+            }
+        </div>
+    </div>
+</nav>
+
+@code {
+    private bool isDropdownOpen = false;
+
+    private void ToggleDropdown()
+    {
+        isDropdownOpen = !isDropdownOpen;
+    }
+}

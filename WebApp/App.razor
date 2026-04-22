@@ -1,6 +1,38 @@
-﻿<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
+﻿@inject NavigationManager Navigation
+
+<Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)"/>
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
         <FocusOnNavigate RouteData="@routeData" Selector="h1" />
     </Found>
 </Router>
+@code
+{
+    protected override async Task OnInitializedAsync()
+    {
+        //var uri = Navigation.ToBaseRelativePath(Navigation.Uri).ToLower();
+        //
+        //var isAuthenticated = await AuthService.IsAuthenticatedAsync();
+        //if (!isAuthenticated && uri != "login")
+        //{
+        //    // If the user is not authenticated and not on the login page, redirect to login
+        //    Navigation.NavigateTo("/login", true);
+        //    return;
+        //}
+        //else if (isAuthenticated && uri == "login")
+        //{
+        //    Navigation.NavigateTo(homeUrl, true);
+        //    return;
+        //}
+        //else if (isAuthenticated && (uri == "" || uri == "/"))
+        //{
+        //    Navigation.NavigateTo(homeUrl, true);
+        //    return;
+        //}
+    }
+
+    private async Task HandleNavigation(NavigationContext args)
+    {
+        // Optional: recheck on every navigation if needed
+    }
+}
