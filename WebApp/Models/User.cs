@@ -8,5 +8,15 @@
         public string Username { get; set; }
         public string Token { get; set; }
         public bool IsDeleting { get; set; }
+
+        internal static User Empty => new User
+        {
+            Id = "",
+            FirstName = "",
+            LastName = "",
+            Username = "",
+            Token = "",
+            IsDeleting = false
+        };
     }
 }

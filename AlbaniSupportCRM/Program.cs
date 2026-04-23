@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,7 +20,7 @@ builder.Services.AddHttpContextAccessor();
 //builder.Services.AddSecurity(builder.Configuration);
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+//builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 
 // Configure Identity
 builder.Services.AddIdentity<ASMemberUser, IdentityRole>(options =>
@@ -46,18 +47,73 @@ builder.Services.AddAuthorizationBuilder()
                            policy => policy.RequireRole(nameof(Roles.User)));
 
 //CORS POLICY
-var corsOrigins = builder.Configuration["CORS_ORIGINS"]?
-    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-    ?? Array.Empty<string>();
+//var corsOrigins = builder.Configuration["CORS_ORIGINS"]?
+//    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+//    ?? Array.Empty<string>();
 
+//builder.Services.AddCors(options =>
+//{
+//    options.AddPolicy(CORSPolicies.AllowBlazorClient, policy =>
+//    {
+//        policy.WithOrigins(corsOrigins)
+//              .AllowAnyHeader()
+//              .AllowAnyMethod()
+//              .AllowCredentials();
+//    });
+//});
+
+// Configure JWT Authentication
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
+
+//Adding Authentication and Authorization using https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/security?view=aspnetcore-8.0
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(secretKey),
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwtSettings["Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero,
+
+            // Important for cookie-based auth
+            RequireExpirationTime = true
+        };
+
+        // Allow reading token from HTTP-only cookies
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                if (context.Request.Cookies.TryGetValue("jwt_token", out var token))
+                {
+                    context.Token = token;
+                }
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+// Add CORS if needed
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy(CORSPolicies.AllowBlazorClient, policy =>
+    options.AddPolicy("AllowBlazorWasm", policy =>
     {
-        policy.WithOrigins(corsOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        policy
+            .WithOrigins("https://localhost:7100") // Your Blazor WASM URL
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials(); // Important for cookies
     });
 });
 
@@ -71,90 +127,7 @@ builder.Services.AddDbContext<ASMembershipContext>(options =>
 //Add service on host to run background tasks, such as cleaning up expired tokens, sending notifications, etc.
 //builder.Services.AddHostedService<>();
 
-//Adding Authentication and Authorization using https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/security?view=aspnetcore-8.0
 
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"];
-
-if (string.IsNullOrEmpty(secretKey))
-{
-    throw new Exception("Secret key not found. Ensure JwtSettings__SecretKey is set in the user secrets or configuration.");
-}
-
-var keyBytes = Convert.FromBase64String(secretKey);
-var securityKey = new SymmetricSecurityKey(keyBytes);
-
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false;
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = false, // We do not validate token lifetime here to allow for custom handling in OnChallenge
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = securityKey
-    };
-    options.Events = new JwtBearerEvents
-    {
-        OnChallenge = context =>
-        {
-            context.HandleResponse();
-
-            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-            context.Response.ContentType = "application/json";
-
-            string message = "Unauthorized";
-
-            if (context.AuthenticateFailure != null)
-            {
-                var ex = context.AuthenticateFailure;
-
-                if (ex is SecurityTokenExpiredException)
-                {
-                    message = "Token expired";
-                }
-                else if (ex is SecurityTokenInvalidSignatureException)
-                {
-                    message = "Invalid token signature";
-                }
-                else if (ex is SecurityTokenInvalidIssuerException)
-                {
-                    message = "Invalid token issuer";
-                }
-                else if (ex is SecurityTokenInvalidAudienceException)
-                {
-                    message = "Invalid token audience";
-                }
-                else if (ex is SecurityTokenNoExpirationException)
-                {
-                    message = "Token has no expiration";
-                }
-                else if (ex is SecurityTokenInvalidLifetimeException)
-                {
-                    message = "Invalid token lifetime";
-                }
-                else
-                {
-                    // Fallback: use the exception message but sanitize if needed
-                    message = ex.Message;
-                }
-            }
-
-            return context.Response.WriteAsync($"{{\"error\": \"{message}\"}}");
-        }
-    };
-
-});
 
 builder.Services.AddAuthorization();
 

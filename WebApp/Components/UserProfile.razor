@@ -1,0 +1,28 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using WebApp.Auth
+
+<AuthorizeView>
+    <Authorized>
+        <div class="profile-container">
+            <h2>Welcome, @context.User.FindFirst(System.Security.Claims.ClaimTypes.GivenName)?.Value!</h2>
+            
+            <p>Email: @context.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value</p>
+            <p>Role: @context.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</p>
+            
+            <button class="btn btn-danger" @onclick="HandleLogout">Logout</button>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <p>You are not authenticated. <a href="/login">Login here</a></p>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    @inject IAccountService AccountService
+    @inject NavigationManager NavigationManager
+
+    private async Task HandleLogout()
+    {
+        await AccountService.LogoutAsync();
+    }
+}

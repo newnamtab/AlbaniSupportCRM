@@ -1,4 +1,6 @@
 ﻿@page "/account/register"
+
+@using WebApp.Auth
 @using WebApp.Models
 @using WebApp.Services
 
@@ -23,8 +25,8 @@
             </div>
             <div class="form-group">
                 <label>Username</label>
-                <InputText @bind-Value="model.Username" class="form-control" />
-                <ValidationMessage For="@(() => model.Username)" />
+                <InputText @bind-Value="model.Email" class="form-control" />
+                <ValidationMessage For="@(() => model.Email)" />
             </div>
             <div class="form-group">
                 <label>Password</label>
@@ -55,7 +57,7 @@
         loading = true;
         try
         {
-            await AccountService.Register(model);
+            await AccountService.RegisterAsync(model);
             AlertService.Success("Registration successful", keepAfterRouteChange: true);
             NavigationManager.NavigateTo("account/login");
         }

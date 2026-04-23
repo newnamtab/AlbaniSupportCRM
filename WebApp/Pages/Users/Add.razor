@@ -1,6 +1,7 @@
 ﻿@page "/users/add"
 
 @using Microsoft.AspNetCore.Authorization
+@using WebApp.Auth
 @using WebApp.Models
 @using WebApp.Services
 
@@ -28,8 +29,8 @@
     <div class="form-row">
         <div class="form-group col">
             <label>Username</label>
-            <InputText @bind-Value="model.Username" class="form-control" />
-            <ValidationMessage For="@(() => model.Username)" />
+            <InputText @bind-Value="model.Email" class="form-control" />
+            <ValidationMessage For="@(() => model.Email)" />
         </div>
         <div class="form-group col">
             <label>Password</label>
@@ -58,7 +59,7 @@
         loading = true;
         try
         {
-            await AccountService.Register(model);
+            await AccountService.RegisterAsync(model);
             AlertService.Success("User added successfully", keepAfterRouteChange: true);
             NavigationManager.NavigateTo("users");
         }

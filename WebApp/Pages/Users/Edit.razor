@@ -1,12 +1,14 @@
 ﻿@page "/users/edit/{Id}"
 
 @using Microsoft.AspNetCore.Authorization
+@using WebApp.Auth
 @using WebApp.Models
 @using WebApp.Services
 
 @attribute [Authorize]
 @inject IAlertService AlertService
 @inject IAccountService AccountService
+@inject IUserService UserService
 @inject NavigationManager NavigationManager
 
 <h1>Edit User</h1>
@@ -31,14 +33,6 @@
                 <label>Username</label>
                 <InputText @bind-Value="model.Username" class="form-control" />
                 <ValidationMessage For="@(() => model.Username)" />
-            </div>
-            <div class="form-group col">
-                <label>
-                    Password
-                    <em>(Leave blank to keep the same password)</em>
-                </label>
-                <InputText @bind-Value="model.Password" type="password" class="form-control" />
-                <ValidationMessage For="@(() => model.Password)" />
             </div>
         </div>
         <div class="form-group">
@@ -69,7 +63,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var user = await AccountService.GetById(Id);
+        var user = await UserService.GetById(Id);
         model = new EditUser(user);
     }
 
@@ -78,7 +72,7 @@ else
         loading = true;
         try
         {
-            await AccountService.Update(Id, model);
+            await UserService.Update(Id, model);
             AlertService.Success("Update successful", keepAfterRouteChange: true);
             NavigationManager.NavigateTo("users");
         }

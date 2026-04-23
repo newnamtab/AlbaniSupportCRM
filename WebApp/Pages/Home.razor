@@ -1,7 +1,7 @@
 ﻿@page "/"
 
 @using Microsoft.AspNetCore.Authorization
-@using WebApp.Services
+@using WebApp.Auth
 
 @attribute [Authorize]
 @inject IAccountService AccountService
@@ -11,7 +11,7 @@
 <h1 class="text-center"> Velkommen Lokale Verdensmænd</h1>
 <div class="p-4">
     <div class="container">
-        <h1>Hi @AccountService.User.FirstName!</h1>
+        <h1>Hi @AccountService.User?.FirstName ?? "Guest"!</h1>
         <p>You're logged in with Blazor WebAssembly!!</p>
         <p><NavLink href="users">Manage Users</NavLink></p>
     </div>

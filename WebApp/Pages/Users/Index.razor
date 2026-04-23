@@ -1,11 +1,12 @@
 ﻿@page "/users"
 
 @using Microsoft.AspNetCore.Authorization
+@using WebApp.Auth
 @using WebApp.Models
 @using WebApp.Services
 
 @attribute [Authorize]
-@inject IAccountService AccountService
+@inject IUserService UserService
 
 <h1>Users</h1>
 <NavLink href="users/add" class="btn btn-sm btn-success mb-2">Add User</NavLink>
@@ -61,7 +62,7 @@
     protected override async Task OnInitializedAsync()
     {
         loading = true;
-        users = await AccountService.GetAll();
+        users = await UserService.GetAll();
         loading = false;
     }
 
@@ -69,7 +70,7 @@
     {
         var user = users.First(x => x.Id == id);
         user.IsDeleting = true;
-        await AccountService.Delete(id);
+        await UserService.Delete(id);
         users.Remove(user);
         StateHasChanged();
     }

@@ -1,6 +1,8 @@
 ﻿@page "/account/login"
 
+@using WebApp.Auth
 @using WebApp.Services
+
 @inject IAccountService AccountService
 @inject IAlertService AlertService
 @inject NavigationManager NavigationManager
@@ -12,8 +14,8 @@
             <DataAnnotationsValidator />
             <div class="form-group">
                 <label>Username</label>
-                <InputText @bind-Value="model.Username" class="form-control" />
-                <ValidationMessage For="@(() => model.Username)" />
+                <InputText @bind-Value="model.Email" class="form-control" />
+                <ValidationMessage For="@(() => model.Email)" />
             </div>
             <div class="form-group">
                 <label>Password</label>
@@ -44,7 +46,7 @@
         loading = true;
         try
         {
-            await AccountService.Login(model);
+            await AccountService.LoginAsync(model);
             //var returnUrl = NavigationManager.QueryString("returnUrl") ?? "";
             NavigationManager.NavigateTo("");
         }
