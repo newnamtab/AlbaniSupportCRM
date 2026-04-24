@@ -12,7 +12,7 @@ namespace WebApp.Services
         Task Delete(string id);
     }
 
-    public class UserService
+    public class UserService : IUserService
     {
         private readonly HttpClient _httpClient;
 

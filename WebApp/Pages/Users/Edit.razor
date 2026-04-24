@@ -64,7 +64,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         var user = await UserService.GetById(Id);
-        model = new EditUser(user);
+        model = new EditUser(user.Username, user.Username, user.FirstName, user.LastName);
     }
 
     private async void OnValidSubmit()

@@ -84,7 +84,7 @@ namespace WebApp.Services
                 var issuedAt = jwtToken.IssuedAt;
                 var expiresAt = jwtToken.ValidTo;
 
-                if (!int.TryParse(userIdClaim, out var userId))
+                if (!Guid.TryParse(userIdClaim, out var userId))
                 {
                     _logger.LogWarning("Unable to parse user ID from token");
                     return null;

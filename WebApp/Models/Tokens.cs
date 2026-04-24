@@ -32,7 +32,7 @@
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
 
-        private EditUser(string username, string email, string firstName, string lastName)
+        public EditUser(string username, string email, string firstName, string lastName)
         {
             Username = username;
             Email = email;
@@ -40,51 +40,47 @@
             LastName = lastName;
         }
 
-        public EditUser(User user) =>
-            new EditUser(user.Username,
-                         user.Username,
-                         user.FirstName,
-                         user.LastName);
     };
 
-}
-/// <summary>User profile model</summary>
-public class UserProfile
-{
-    public int Id { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string? Role { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public bool IsActive { get; set; } = true;
 
-    public static UserProfile Empty => new UserProfile();
+    /// <summary>User profile model</summary>
+    public class UserProfile
+    {
+        public Guid Id { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? Role { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsActive { get; set; } = true;
 
-    public string FullName => $"{FirstName} {LastName}".Trim();
-}
+        public static UserProfile Empty => new UserProfile();
 
-/// <summary>API response wrapper</summary>
-public class ApiResponse<T>
-{
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-    public T? Data { get; set; }
-    public List<string>? Errors { get; set; }
-}
+        public string FullName => $"{FirstName} {LastName}".Trim();
+    }
 
-/// <summary>JWT token claims decoded from token</summary>
-public class JwtTokenClaims
-{
-    public int UserId { get; set; }
-    public string Email { get; set; } = string.Empty;
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
-    public string? Role { get; set; }
-    public DateTime IssuedAt { get; set; }
-    public DateTime ExpiresAt { get; set; }
-    public string Jti { get; set; } = string.Empty; // JWT ID for tracking
+    /// <summary>API response wrapper</summary>
+    public class ApiResponse<T>
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public T? Data { get; set; }
+        public List<string>? Errors { get; set; }
+    }
 
-    public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
-    public TimeSpan TimeUntilExpiry => ExpiresAt - DateTime.UtcNow;
+    /// <summary>JWT token claims decoded from token</summary>
+    public class JwtTokenClaims
+    {
+        public Guid UserId { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? Role { get; set; }
+        public DateTime IssuedAt { get; set; }
+        public DateTime ExpiresAt { get; set; }
+        public string Jti { get; set; } = string.Empty; // JWT ID for tracking
+
+        public bool IsExpired => DateTime.UtcNow >= ExpiresAt;
+        public TimeSpan TimeUntilExpiry => ExpiresAt - DateTime.UtcNow;
+    }
 }

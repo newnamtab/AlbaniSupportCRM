@@ -81,9 +81,6 @@ namespace WebApp.Auth
         private readonly NavigationManager _navigationManager;
         private readonly ILogger<AccountService> _logger;
 
-        private string _userKey = "user_profile";
-        private string _tokenClaimsKey = "token_claims";
-
         private UserProfile? _currentUser;
         private JwtTokenClaims? _tokenClaims;
         private System.Timers.Timer? _tokenRefreshTimer;
@@ -96,12 +93,12 @@ namespace WebApp.Auth
         public JwtTokenClaims? TokenClaims => _tokenClaims;
 
         public AccountService(
-            HttpClient httpClient,
+            IHttpClientFactory httpClientFactory,
             NavigationManager navigationManager,
             ILogger<AccountService> logger
         )
         {
-            _httpClient = httpClient;
+            _httpClient = httpClientFactory.CreateClient();
             _navigationManager = navigationManager;
             _logger = logger;
         }
@@ -112,9 +109,6 @@ namespace WebApp.Auth
             try
             {
                 _logger.LogInformation("Initializing AccountService");
-
-                // Restore user profile from localStorage
-                _currentUser = null;
 
                 if (_currentUser != null)
                 {
@@ -167,7 +161,21 @@ namespace WebApp.Auth
                 {
                     // Set user and decode token claims from JWT in cookie
                     _currentUser = result.Data.User;
-                    //await _localStorageService.SetItem(_userKey, _currentUser);
+
+                    // Build token claims from the response data
+                    // Note: Token is in HTTP-only cookie and not accessible from client code
+                    // We construct JwtTokenClaims from the returned user data for UI purposes
+                    _tokenClaims = new JwtTokenClaims
+                    {
+                        UserId = result.Data.User.Id,
+                        Email = result.Data.User.Email,
+                        FirstName = result.Data.User.FirstName,
+                        LastName = result.Data.User.LastName,
+                        Role = result.Data.User.Role,
+                        IssuedAt = DateTime.UtcNow,
+                        ExpiresAt = DateTime.UtcNow.AddSeconds(result.Data.ExpiresIn),
+                        Jti = Guid.NewGuid().ToString() // Placeholder - actual JTI is in server token
+                    };
 
                     // Start automatic token refresh timer
                     StartTokenRefreshTimer(result.Data.ExpiresIn);
@@ -269,6 +277,12 @@ namespace WebApp.Auth
                 {
                     _logger.LogInformation("Token refreshed successfully");
 
+                    // Update token expiry time
+                    if (_tokenClaims != null)
+                    {
+                        _tokenClaims.ExpiresAt = DateTime.UtcNow.AddSeconds(result.Data.ExpiresIn);
+                    }
+
                     // Restart refresh timer with new expiry
                     StopTokenRefreshTimer();
                     StartTokenRefreshTimer(result.Data.ExpiresIn);
@@ -310,9 +324,6 @@ namespace WebApp.Auth
                 // Clear local state
                 _currentUser = null;
                 _tokenClaims = null;
-
-                //await _localStorageService.RemoveItem(_userKey);
-                //await _localStorageService.RemoveItem(_tokenClaimsKey);
 
                 _logger.LogInformation("User logged out successfully");
                 _navigationManager.NavigateTo("/");

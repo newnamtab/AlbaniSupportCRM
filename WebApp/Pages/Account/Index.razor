@@ -1,0 +1,30 @@
+﻿@page "/account"
+
+@using Microsoft.AspNetCore.Authorization
+@using WebApp.Auth
+@using WebApp.Models
+@using WebApp.Services
+
+@attribute [Authorize]
+
+<h1>Account: CurrentUserName</h1>
+<NavLink href="account/add" class="btn btn-sm btn-success mb-2">Gør Noget ved din account</NavLink>
+
+@if (loading)
+{
+    <tr>
+        <td colspan="4" class="text-center">
+            <span class="spinner-border spinner-border-lg align-center"></span>
+        </td>
+    </tr>
+}
+  
+
+@code {
+    private bool loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        loading = false;
+    }
+}

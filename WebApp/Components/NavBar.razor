@@ -1,33 +1,38 @@
 @using System.Collections.Generic
+@using WebApp.Auth
 
-<nav class="navbar">
-    <div class="navbar-container">
-        <div class="navbar-logo">
-            <img src="images/logo.svg" alt="Logo" class="logo-image" />
-        </div>
-        <div class="navbar-dropdown">
-            <button class="dropdown-button" @onclick="ToggleDropdown">
-                navigation dropdown
-                <span class="dropdown-arrow">▼</span>
-            </button>
-            @if (isDropdownOpen)
-            {
-                <div class="dropdown-menu">
-                    <a href="#" class="dropdown-item">Dropdown item 1</a>
-                    <a href="#" class="dropdown-item">Dropdown item 2</a>
-                    <a href="#" class="dropdown-item">Dropdown item 3</a>
-                    <a href="#" class="dropdown-item">Dropdown item 4</a>
-                </div>
-            }
+@inject IAccountService AccountService
+
+<nav class="navbar navbar-expand-sm bg-light">
+    <div class="container-fluid">
+        <a class="navbar-brand float-start" href="/">
+            <img src="images/logo.svg" alt="Logo" class="rounded-pill">
+        </a>
+        <div class="float-end">
+            <ul class="nav nav-tabs ">
+                <li class="nav-item">
+                    <a class="nav-link @(AccountService.User?.Role == "Admin" ? "" : "disabled")" href="users">Brugere</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link disabled" href="#" tabindex="-1" aria-disabled="true">Disabled</a>
+                </li>
+                <li class="nav-item dropdown float-end">
+                    <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" href="#" role="button" aria-expanded="false">Dropdown</a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#">Dropdown item 1</a></li>
+                        <li><a class="dropdown-item" href="#">Dropdown item 2</a></li>
+                        <li><a class="dropdown-item" href="#">Dropdown item 3</a></li>
+                        <li><a class="dropdown-item" href="#">Dropdown item 4</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="account">Login/Logout</a></li>
+                    </ul>
+                </li>
+            </ul>
         </div>
     </div>
 </nav>
 
-@code {
-    private bool isDropdownOpen = false;
 
-    private void ToggleDropdown()
-    {
-        isDropdownOpen = !isDropdownOpen;
-    }
+@code {
+    
 }

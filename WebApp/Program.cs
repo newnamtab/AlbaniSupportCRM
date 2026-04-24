@@ -11,17 +11,17 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Configure HTTP client with base address
-builder.Services.AddScoped(sp =>
-    new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+builder.Services.AddHttpClient();
+
+builder.Services.AddScoped<IAccountService, AccountService>();
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IAlertService, AlertService>();
 
 // Add authentication
-builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
-builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
 builder.Services.AddAuthorizationCore();
-
-// Add local storage service (you may already have this)
-// builder.Services.AddScoped<ILocalStorageService, LocalStorageService>();
+//builder.Services.AddApiAuthorization();
 
 // Add logging
 builder.Services.AddLogging(logging =>
