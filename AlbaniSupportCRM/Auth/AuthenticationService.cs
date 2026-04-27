@@ -5,7 +5,7 @@
         Task<UserProfile> AuthenticateAsync(string email, string password);
         Task<bool> StoreRefreshTokenAsync(Guid userId, string refreshToken);
     }
-    public class AuthenticationService
+    public class AuthenticationService : IAuthenticationService
     {
         public async Task<UserProfile> AuthenticateAsync(string email, string password)
         {

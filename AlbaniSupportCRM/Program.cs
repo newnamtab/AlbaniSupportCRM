@@ -1,6 +1,8 @@
 using AlbaniSupportCRM.Middleware;
 using AlbaniSupportCRM.settings;
 using AlbaniSupportCRM.User;
+using API.Auth;
+using API.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -20,7 +22,10 @@ builder.Services.AddHttpContextAccessor();
 //builder.Services.AddSecurity(builder.Configuration);
 
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-//builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+
 
 // Configure Identity
 builder.Services.AddIdentity<ASMemberUser, IdentityRole>(options =>
@@ -147,6 +152,9 @@ else
     // In production, enforce HTTPS
     app.UseHttpsRedirection();
 }
+
+// Map endpoints
+RegisterAuthEndpoints.Setup(app);
 
 //Middleware
 app.UseMiddleware<RequestLoggingMiddleware>();

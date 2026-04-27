@@ -9,7 +9,7 @@ namespace API.Services
         Task<UserProfile> CreateUserAsync(string email, string password, string firstname, string lastName);
     }
 
-    public class UserService
+    public class UserService : IUserService
     {
         public async Task<UserProfile> GetUserByIdAsync(Guid id)
         {
