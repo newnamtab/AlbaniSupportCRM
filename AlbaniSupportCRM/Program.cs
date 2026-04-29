@@ -11,6 +11,10 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure logging
+// Add logging
+//builder.Services.AddLogging();
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -20,9 +24,11 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 
 //builder.Services.AddSecurity(builder.Configuration);
+var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+builder.Services.Configure<JwtSettings>(jwtSettings);
+//var jwtSettings = IOptionsRegistration.RegisterOptions<JwtSettings>(builder.Services, builder.Configuration);
 
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IServerUserService, ServerUserService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 
@@ -68,8 +74,8 @@ builder.Services.AddAuthorizationBuilder()
 //});
 
 // Configure JWT Authentication
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Encoding.UTF8.GetBytes(jwtSettings["SecretKey"]!);
+//var jwtSettings = builder.Services.SingleOrDefault(x => x.ServiceType == typeof(IOptions<JwtSettings>))?.ImplementationInstance as IOptions<JwtSettings>;
+var secretKey = Encoding.UTF8.GetBytes( jwtSettings["SecretKey"] );// ["SecretKey"]!);
 
 //Adding Authentication and Authorization using https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/security?view=aspnetcore-8.0
 builder.Services
@@ -85,9 +91,9 @@ builder.Services
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(secretKey),
             ValidateIssuer = true,
-            ValidIssuer = jwtSettings["Issuer"],
+            ValidIssuer = jwtSettings["Issuer"],//["Issuer"],
             ValidateAudience = true,
-            ValidAudience = jwtSettings["Audience"],
+            ValidAudience = jwtSettings["Audience"],//["Audience"],
             ValidateLifetime = true,
             ClockSkew = TimeSpan.Zero,
 
@@ -112,10 +118,10 @@ builder.Services
 // Add CORS if needed
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowBlazorWasm", policy =>
+    options.AddPolicy(CORSPolicies.AllowBlazorClient, policy =>
     {
         policy
-            .WithOrigins("https://localhost:7100") // Your Blazor WASM URL
+            .WithOrigins("http://localhost:5227") // Your Blazor WASM URL
             .AllowAnyMethod()
             .AllowAnyHeader()
             .AllowCredentials(); // Important for cookies
@@ -153,13 +159,13 @@ else
     app.UseHttpsRedirection();
 }
 
-// Map endpoints
-RegisterAuthEndpoints.Setup(app);
-
 //Middleware
 app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+
+// Map endpoints
+RegisterAuthEndpoints.Setup(app);
 
 //Global CORS policy - can be overridden by specific endpoints if needed
 app.UseCors(CORSPolicies.AllowBlazorClient);
@@ -180,7 +186,7 @@ app.UseAuthorization();
 //    }
 
 //Seed Roles not already there
-await DataSeeder.SeedRolesAsync(app.Services.GetRequiredService<RoleManager<IdentityRole>>());
+//await DataSeeder.SeedRolesAsync(app.Services.GetRequiredService<RoleManager<IdentityRole>>());
 // if(services.GetRequiredService<IHostEnvironment>().IsDevelopment())
 //     await DataSeeder.SeedTestData(services, context);
 

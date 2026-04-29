@@ -1,4 +1,6 @@
-﻿using API.Auth;
+﻿using AlbaniSupportCRM.settings;
+using API.Auth;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -22,17 +24,17 @@ namespace API.Services
         Guid? ValidateRefreshToken(string token);
 
         /// <summary>Gets the access token expiry time in seconds</summary>
-        int GetTokenExpirySeconds();
+        int TokenExpirySeconds { get; }
     }
 
     public class TokenService : ITokenService
     {
-        private readonly IConfiguration _configuration;
+        private readonly JwtSettings _jwtSettings;
         private readonly ILogger<TokenService> _logger;
 
-        public TokenService(IConfiguration configuration, ILogger<TokenService> logger)
+        public TokenService(IOptions<JwtSettings> configuration, ILogger<TokenService> logger)
         {
-            _configuration = configuration;
+            _jwtSettings = configuration.Value;
             _logger = logger;
         }
 
@@ -41,14 +43,11 @@ namespace API.Services
         /// </summary>
         public string GenerateAccessToken(UserProfile user)
         {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
             var secretKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured"))
+                Encoding.UTF8.GetBytes(_jwtSettings.SecretKey ?? throw new InvalidOperationException("JWT SecretKey not configured"))
             );
 
             var credentials = new SigningCredentials(secretKey, SecurityAlgorithms.HmacSha256);
-
-            var expiryMinutes = int.TryParse(jwtSettings["ExpiryMinutes"], out var expiry) ? expiry : 15;
 
             var claims = new List<Claim>
             {
@@ -61,10 +60,10 @@ namespace API.Services
             };
 
             var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
+                issuer: _jwtSettings.Issuer,
+                audience: _jwtSettings.Audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
+                expires: DateTime.UtcNow.AddMinutes( _jwtSettings.ExpiryMinutes ),
                 signingCredentials: credentials
             );
 
@@ -95,9 +94,8 @@ namespace API.Services
             {
                 // In production, verify the token exists in the database
                 // and hasn't been revoked
-                var jwtSettings = _configuration.GetSection("JwtSettings");
                 var secretKey = new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(jwtSettings["SecretKey"] ?? throw new InvalidOperationException())
+                    Encoding.UTF8.GetBytes(_jwtSettings.SecretKey ?? throw new InvalidOperationException())
                 );
 
                 var tokenHandler = new JwtSecurityTokenHandler();
@@ -106,9 +104,9 @@ namespace API.Services
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = secretKey,
                     ValidateIssuer = true,
-                    ValidIssuer = jwtSettings["Issuer"],
+                    ValidIssuer = _jwtSettings.Issuer,
                     ValidateAudience = true,
-                    ValidAudience = jwtSettings["Audience"],
+                    ValidAudience = _jwtSettings.Audience,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
                 }, out SecurityToken validatedToken);
@@ -131,15 +129,6 @@ namespace API.Services
         }
 
         /// <summary>Gets the access token expiry time in seconds</summary>
-        public int GetTokenExpirySeconds()
-        {
-            var jwtSettings = _configuration.GetSection("JwtSettings");
-            if (int.TryParse(jwtSettings["ExpiryMinutes"], out var expiryMinutes))
-            {
-                return expiryMinutes * 60;
-            }
-
-            return 15 * 60; // Default 15 minutes
-        }
+        public int TokenExpirySeconds => _jwtSettings.ExpiryMinutes * 60;
     }
 }

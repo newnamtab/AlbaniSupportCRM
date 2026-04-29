@@ -26,31 +26,19 @@ namespace WebApp.Auth
         Task InitializeAsync();
 
         /// <summary>Login with email and password</summary>
-        Task<Result<LoginResponse>> LoginAsync(Login model);
+        Task<AuthResult> LoginAsync(Login model);
 
         /// <summary>Register new user account</summary>
-        Task<Result<RegisterResponse>> RegisterAsync(AddUser model);
+        Task<AuthResult> RegisterAsync(AddUser model);
 
         /// <summary>Logout and clear session</summary>
         Task LogoutAsync();
 
         /// <summary>Refresh JWT token before expiry</summary>
-        Task<Result<RefreshTokenResponse>> RefreshTokenAsync();
-
-        /// <summary>Get time until token expires</summary>
-        TimeSpan GetTokenTimeRemaining();
+        Task<AuthResult> RefreshTokenAsync();
 
         /// <summary>Force refresh token on demand</summary>
         Task ForceTokenRefreshAsync();
-    }
-
-    /// <summary>Generic API result wrapper</summary>
-    public class Result<T>
-    {
-        public bool Success { get; set; }
-        public T? Data { get; set; }
-        public string? Message { get; set; }
-        public List<string> Errors { get; set; } = new();
     }
 
     /// <summary>Login response from API</summary>
@@ -59,6 +47,23 @@ namespace WebApp.Auth
         public string AccessToken { get; set; } = string.Empty;
         public int ExpiresIn { get; set; } // seconds
         public UserProfile User { get; set; } = UserProfile.Empty;
+    }
+    public class AuthResult
+    {
+        public bool Success { get; }
+        public string Message { get; } = string.Empty;
+        public IEnumerable<string> Errors { get; }
+
+        private AuthResult(bool success, string message, IEnumerable<string> errors)
+        {
+            Success = success;
+            Message = message;
+            Errors = errors;
+        }
+        public static AuthResult SuccessResult(string message = "Operation successful") =>
+            new AuthResult(true, message, Array.Empty<string>());
+        public static AuthResult FailureResult(string message = "Operation failed", IEnumerable<string> errors = null) =>
+            new AuthResult(false, message, errors ?? Array.Empty<string>());
     }
 
     /// <summary>Register response from API</summary>
@@ -98,7 +103,7 @@ namespace WebApp.Auth
             ILogger<AccountService> logger
         )
         {
-            _httpClient = httpClientFactory.CreateClient();
+            _httpClient = httpClientFactory.CreateClient("API");
             _navigationManager = navigationManager;
             _logger = logger;
         }
@@ -132,133 +137,111 @@ namespace WebApp.Auth
         }
 
         /// <summary>Login user with credentials</summary>
-        public async Task<Result<LoginResponse>> LoginAsync(Login model)
+        public async Task<AuthResult> LoginAsync(Login model)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
                 {
-                    return new Result<LoginResponse>
-                    {
-                        Success = false,
-                        Message = "Email and password are required",
-                        Errors = new List<string> { "Validation failed" }
-                    };
+                    return AuthResult.FailureResult("Email and password are required", new List<string> { "Validation failed" });
                 }
 
                 _logger.LogInformation($"Login attempt for: {model.Email}");
 
-                var response = await _httpClient.PostAsJsonAsync("api/account/login", model);
+                var response = await _httpClient.PostAsJsonAsync("api/auth/login", model);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return await HandleErrorResponseAsync<LoginResponse>(response);
+                    return await HandleErrorResponseAsync(response);
                 }
 
-                var result = await response.Content.ReadAsAsync<Result<LoginResponse>>();
+                var result = await response.Content.ReadAsAsync<LoginResponse>();
 
-                if (result.Success && result.Data != null)
+                if (result.User != null)
                 {
                     // Set user and decode token claims from JWT in cookie
-                    _currentUser = result.Data.User;
+                    _currentUser = result.User;
 
                     // Build token claims from the response data
                     // Note: Token is in HTTP-only cookie and not accessible from client code
                     // We construct JwtTokenClaims from the returned user data for UI purposes
                     _tokenClaims = new JwtTokenClaims
                     {
-                        UserId = result.Data.User.Id,
-                        Email = result.Data.User.Email,
-                        FirstName = result.Data.User.FirstName,
-                        LastName = result.Data.User.LastName,
-                        Role = result.Data.User.Role,
+                        UserId = result.User.Id,
+                        Email = result.User.Email,
+                        FirstName = result.User.FirstName,
+                        LastName = result.User.LastName,
+                        Role = result.User.Role,
                         IssuedAt = DateTime.UtcNow,
-                        ExpiresAt = DateTime.UtcNow.AddSeconds(result.Data.ExpiresIn),
+                        ExpiresAt = DateTime.UtcNow.AddSeconds(result.ExpiresIn),
                         Jti = Guid.NewGuid().ToString() // Placeholder - actual JTI is in server token
                     };
 
                     // Start automatic token refresh timer
-                    StartTokenRefreshTimer(result.Data.ExpiresIn);
+                    StartTokenRefreshTimer(result.ExpiresIn);
 
                     _logger.LogInformation($"Login successful for: {_currentUser.Email}");
                 }
                 else
                 {
-                    _logger.LogWarning($"Login failed: {result.Message}");
+                    _logger.LogWarning($"Login failed:");
                 }
 
-                return result;
+                return AuthResult.SuccessResult("Login successful");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during login");
-                return new Result<LoginResponse>
-                {
-                    Success = false,
-                    Message = "An error occurred during login",
-                    Errors = new List<string> { ex.Message }
-                };
+                return AuthResult.FailureResult("An error occurred during login", new List<string> { ex.Message }); 
             }
         }
 
         /// <summary>Register new user</summary>
-        public async Task<Result<RegisterResponse>> RegisterAsync(AddUser model)
+        public async Task<AuthResult> RegisterAsync(AddUser model)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
                 {
-                    return new Result<RegisterResponse>
-                    {
-                        Success = false,
-                        Message = "Email and password are required",
-                        Errors = new List<string> { "Validation failed" }
-                    };
+                    return AuthResult.FailureResult("Email and password are required", new List<string> { "Validation failed" });
                 }
 
                 _logger.LogInformation($"Registration attempt for: {model.Email}");
 
-                var response = await _httpClient.PostAsJsonAsync("api/account/register", model);
+                var response = await _httpClient.PostAsJsonAsync("/api/auth/register", model);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    return await HandleErrorResponseAsync<RegisterResponse>(response);
+                    return await HandleErrorResponseAsync(response);
                 }
 
-                var result = await response.Content.ReadAsAsync<Result<RegisterResponse>>();
+                var result = await response.Content.ReadAsAsync<RegisterResponse>();
 
-                if (result.Success)
+                if (result != null)
                 {
                     _logger.LogInformation($"Registration successful for: {model.Email}");
-                }
-                else
-                {
-                    _logger.LogWarning($"Registration failed: {result.Message}");
+                    return AuthResult.SuccessResult(result.Message);
                 }
 
-                return result;
+                _logger.LogWarning($"Registration failed: {result.Message}");
+                return AuthResult.FailureResult("Registration failed", new List<string> { result?.Message ?? "Unknown error" });
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during registration");
-                return new Result<RegisterResponse>
-                {
-                    Success = false,
-                    Message = "An error occurred during registration",
-                    Errors = new List<string> { ex.Message }
-                };
+                return AuthResult.FailureResult("An error occurred during registration", new List<string> { ex.Message });
             }
         }
 
         /// <summary>Refresh JWT token before expiry</summary>
-        public async Task<Result<RefreshTokenResponse>> RefreshTokenAsync()
+        public async Task<AuthResult> RefreshTokenAsync()
         {
             try
             {
                 _logger.LogInformation("Refreshing JWT token");
 
                 // Token is in HTTP-only cookie, automatically sent by browser
-                var response = await _httpClient.PostAsync("api/account/refresh-token", null);
+                var response = await _httpClient.PostAsync("/api/auth/refresh-token", null);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -268,37 +251,32 @@ namespace WebApp.Auth
                         await LogoutAsync();
                     }
 
-                    return await HandleErrorResponseAsync<RefreshTokenResponse>(response);
+                    return await HandleErrorResponseAsync(response);
                 }
 
-                var result = await response.Content.ReadAsAsync<Result<RefreshTokenResponse>>();
+                var result = await response.Content.ReadAsAsync<RefreshTokenResponse>();
 
-                if (result.Success && result.Data != null)
+                if (result != null)
                 {
                     _logger.LogInformation("Token refreshed successfully");
 
                     // Update token expiry time
                     if (_tokenClaims != null)
                     {
-                        _tokenClaims.ExpiresAt = DateTime.UtcNow.AddSeconds(result.Data.ExpiresIn);
+                        _tokenClaims.ExpiresAt = DateTime.UtcNow.AddSeconds(result.ExpiresIn);
                     }
 
                     // Restart refresh timer with new expiry
                     StopTokenRefreshTimer();
-                    StartTokenRefreshTimer(result.Data.ExpiresIn);
+                    StartTokenRefreshTimer(result.ExpiresIn);
                 }
 
-                return result;
+                return AuthResult.SuccessResult("Token refreshed successfully");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during token refresh");
-                return new Result<RefreshTokenResponse>
-                {
-                    Success = false,
-                    Message = "Token refresh failed",
-                    Errors = new List<string> { ex.Message }
-                };
+                return AuthResult.FailureResult("Token refresh failed", new List<string> { ex.Message });
             }
         }
 
@@ -314,7 +292,7 @@ namespace WebApp.Auth
                 // Notify API to invalidate tokens
                 try
                 {
-                    await _httpClient.PostAsync("api/account/logout", null);
+                    await _httpClient.PostAsync("/api/auth/logout", null);
                 }
                 catch (Exception ex)
                 {
@@ -332,12 +310,6 @@ namespace WebApp.Auth
             {
                 _logger.LogError(ex, "Error during logout");
             }
-        }
-
-        /// <summary>Get remaining time on token</summary>
-        public TimeSpan GetTokenTimeRemaining()
-        {
-            return _tokenClaims?.TimeUntilExpiry ?? TimeSpan.Zero;
         }
 
         /// <summary>Force token refresh on demand</summary>
@@ -382,22 +354,8 @@ namespace WebApp.Auth
         }
 
         /// <summary>Handle API error responses</summary>
-        private async Task<Result<T>> HandleErrorResponseAsync<T>(HttpResponseMessage response)
-        {
-            try
-            {
-                var result = await response.Content.ReadAsAsync<Result<T>>();
-                return result;
-            }
-            catch
-            {
-                return new Result<T>
-                {
-                    Success = false,
-                    Message = $"HTTP {response.StatusCode}: {response.ReasonPhrase}",
-                    Errors = new List<string> { response.ReasonPhrase ?? "Unknown error" }
-                };
-            }
-        }
+        private async Task<AuthResult> HandleErrorResponseAsync(HttpResponseMessage response) =>
+         AuthResult.FailureResult($"HTTP {response.StatusCode}: {response.ReasonPhrase}",
+                                  new List<string> { response.ReasonPhrase ?? "Unknown error" });
     }
 }

@@ -1,4 +1,6 @@
-﻿@inject NavigationManager Navigation
+﻿@using WebApp.Auth
+@inject NavigationManager Navigation
+@inject IAccountService AccountService
 
 <Router AppAssembly="@typeof(App).Assembly" NotFoundPage="typeof(Pages.NotFound)">
     <Found Context="routeData">
@@ -10,6 +12,7 @@
 {
     protected override async Task OnInitializedAsync()
     {
+        await AccountService.InitializeAsync();
         //var uri = Navigation.ToBaseRelativePath(Navigation.Uri).ToLower();
         //
         //var isAuthenticated = await AuthService.IsAuthenticatedAsync();

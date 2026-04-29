@@ -3,7 +3,7 @@ using WebApp.Models;
 
 namespace WebApp.Services
 {
-    public interface IUserService
+    public interface IClientUserService
     {
         Task Register(AddUser model);
         Task<IList<User>> GetAll();
@@ -12,11 +12,11 @@ namespace WebApp.Services
         Task Delete(string id);
     }
 
-    public class UserService : IUserService
+    public class ClientUserService : IClientUserService
     {
         private readonly HttpClient _httpClient;
 
-        public UserService(HttpClient httpClient)
+        public ClientUserService(HttpClient httpClient)
         {
             _httpClient = httpClient;
         }

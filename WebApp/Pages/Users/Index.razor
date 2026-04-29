@@ -6,7 +6,7 @@
 @using WebApp.Services
 
 @attribute [Authorize]
-@inject IUserService UserService
+@inject IClientUserService UserService
 
 <h1>Users</h1>
 <NavLink href="users/add" class="btn btn-sm btn-success mb-2">Add User</NavLink>

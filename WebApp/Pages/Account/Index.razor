@@ -1,30 +1,28 @@
 ﻿@page "/account"
 
-@using Microsoft.AspNetCore.Authorization
-@using WebApp.Auth
-@using WebApp.Models
-@using WebApp.Services
+@using Microsoft.AspNetCore.Authorization;
+@using WebApp.Auth;
+@using WebApp.Models;
+@using WebApp.Services;
 
-@attribute [Authorize]
+@inject IAccountService AccountService;
 
-<h1>Account: CurrentUserName</h1>
-<NavLink href="account/add" class="btn btn-sm btn-success mb-2">Gør Noget ved din account</NavLink>
 
-@if (loading)
+
+@if (AccountService.IsAuthenticated == false)
 {
-    <tr>
-        <td colspan="4" class="text-center">
-            <span class="spinner-border spinner-border-lg align-center"></span>
-        </td>
-    </tr>
+    <h1>Account: Anonym)</h1>
+    <NavLink href="account/login" class="btn btn-sm btn-success mb-2">Login</NavLink>
+    <NavLink href="account/register" class="btn btn-link">Registrér dig som bruger</NavLink>
 }
-  
+else
+{
+    <h1>Velkommen: @(AccountService.User?.FullName ?? "CurrentUserName")</h1>
+}
 
 @code {
-    private bool loading;
 
     protected override async Task OnInitializedAsync()
     {
-        loading = false;
     }
 }

@@ -4,6 +4,7 @@ using System.Security.Claims;
 
 namespace API.Auth
 {
+    internal record Auth();
     public static class RegisterAuthEndpoints
     {
         private const string JWT_COOKIE_NAME = "jwt_token";
@@ -12,8 +13,8 @@ namespace API.Auth
         public static IEndpointRouteBuilder Setup(this IEndpointRouteBuilder app)
         {
             // Setup authentication endpoints here
-            app.MapPost("/api/auth/login", async Task<IResult> (
-                                                  [FromServices] ILogger logger,
+            app.MapPost("api/auth/login", async Task<IResult> (
+                                                  [FromServices] ILogger<Auth> logger,
                                                   [FromServices] IAuthenticationService authenticationService,
                                                   [FromServices] ITokenService tokenService,
                                                   [FromServices] IHttpContextAccessor httpContextAccessor,
@@ -35,14 +36,13 @@ namespace API.Auth
 
                     // Generate JWT access token
                     var accessToken = tokenService.GenerateAccessToken(user);
-                    var accessTokenExpiry = tokenService.GetTokenExpirySeconds();
 
                     // Generate refresh token (optional but recommended)
                     var refreshToken = tokenService.GenerateRefreshToken(user.Id);
                     await authenticationService.StoreRefreshTokenAsync(user.Id, refreshToken);
 
                     // Set HTTP-only cookies
-                    SetAuthCookies(accessToken, refreshToken, accessTokenExpiry, httpContextAccessor.HttpContext);
+                    SetAuthCookies(accessToken, refreshToken, tokenService.TokenExpirySeconds, httpContextAccessor.HttpContext);
 
                     logger.LogInformation($"Successful login for user: {user.Email}");
 
@@ -63,10 +63,10 @@ namespace API.Auth
                 }
             });
 
-            app.MapPost("api/auth/refreshtoken)", async Task<IResult> (
-                                                        [FromServices] ILogger logger,
+            app.MapPost("/api/auth/refresh-token)", async Task<IResult> (
+                                                        [FromServices] ILogger<Auth> logger,
                                                         [FromServices] ITokenService tokenService,
-                                                        [FromServices] IUserService userService,
+                                                        [FromServices] IServerUserService userService,
                                                         [FromServices] IHttpContextAccessor httpContextAccessor) =>
             {
                 try
@@ -98,13 +98,12 @@ namespace API.Auth
 
                     // Generate new access token
                     var newAccessToken = tokenService.GenerateAccessToken(user);
-                    var accessTokenExpiry = tokenService.GetTokenExpirySeconds();
 
                     // Set new access token in cookie
                     httpContextAccessor.HttpContext!.Response.Cookies.Append(
                         JWT_COOKIE_NAME,
                         newAccessToken,
-                        GetCookieOptions(accessTokenExpiry)
+                        GetCookieOptions( tokenService.TokenExpirySeconds )
                     );
 
                     logger.LogInformation($"Token refreshed for user: {user.Email}");
@@ -118,9 +117,9 @@ namespace API.Auth
                 }
             });
 
-            app.MapPost("/api/auth/register", async Task<IResult> ( [FromServices] ILogger logger,
+            app.MapPost("/api/auth/register", async Task<IResult> ( [FromServices] ILogger<Auth> logger,
                                                                     [FromServices] ITokenService tokenService,
-                                                                    [FromServices] IUserService userService,
+                                                                    [FromServices] IServerUserService userService,
                                                                     [FromBody] RegisterRequest request) =>
             {
                 try
@@ -161,7 +160,7 @@ namespace API.Auth
                 }
             });
 
-            app.MapPost("/api/auth/logout", async Task<IResult> (   [FromServices] ILogger logger,
+            app.MapPost("/api/auth/logout", async Task<IResult> (   [FromServices] ILogger<Auth> logger,
                                                                     [FromServices] IHttpContextAccessor httpContextAccessor) =>
             {
                 try
@@ -179,8 +178,8 @@ namespace API.Auth
                 }
             });
 
-            app.MapGet("/api/auth/profile", async Task<IResult> ([FromServices] ILogger logger,
-                                                                 [FromServices] IUserService userService,
+            app.MapGet("/api/auth/profile", async Task<IResult> ([FromServices] ILogger<Auth> logger,
+                                                                 [FromServices] IServerUserService userService,
                                                                  ClaimsPrincipal claimsPrincipal) =>
             { 
                 try
