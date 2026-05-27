@@ -1,4 +1,4 @@
-﻿namespace AlbaniSupportCRM.Middleware
+﻿namespace API.Middleware
 {
     public class RequestLoggingMiddleware
     {

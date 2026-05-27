@@ -1,4 +1,4 @@
-﻿namespace AlbaniSupportCRM.settings
+﻿namespace API.Settings
 {
     public class CORSPolicies
     {

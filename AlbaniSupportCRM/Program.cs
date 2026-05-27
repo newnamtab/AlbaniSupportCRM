@@ -1,13 +1,7 @@
-using AlbaniSupportCRM.Middleware;
-using AlbaniSupportCRM.settings;
-using AlbaniSupportCRM.User;
+using API.Middleware;
+using API.Settings;
 using API.Auth;
-using API.Services;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using Auth.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,99 +17,10 @@ builder.Services.AddOpenApi();
 //builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHttpContextAccessor();
 
-//builder.Services.AddSecurity(builder.Configuration);
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-builder.Services.Configure<JwtSettings>(jwtSettings);
-//var jwtSettings = IOptionsRegistration.RegisterOptions<JwtSettings>(builder.Services, builder.Configuration);
-
-builder.Services.AddScoped<IServerUserService, ServerUserService>();
-builder.Services.AddScoped<ITokenService, TokenService>();
-builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.ConfigureIdentity( builder.Configuration, builder.Environment );
 
 
-// Configure Identity
-builder.Services.AddIdentity<ASMemberUser, IdentityRole>(options =>
-{
-    options.Password.RequireDigit = true; // Require at least one digit
-    options.Password.RequiredLength = 8; // Minimum length of 8 characters
-    options.Password.RequireNonAlphanumeric = false; // No special character required
-    options.Password.RequireUppercase = true; // Require at least one UPPERCASE letter
-    options.Password.RequireLowercase = true; // Require at least one lowercase letter
-
-    options.User.RequireUniqueEmail = false;
-    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+ æøåÆØÅ"; // Allow letters, digits, and specific special characters
-})
-.AddEntityFrameworkStores<ASMembershipContext>()
-.AddDefaultTokenProviders();
-
-//Role Policies
-builder.Services.AddAuthorizationBuilder()
-                .AddPolicy(Policies.All,
-                           policy => policy.RequireRole(nameof(Roles.Admin), nameof(Roles.User)))
-                .AddPolicy(Policies.AdminOnly,
-                           policy => policy.RequireRole(nameof(Roles.Admin)))
-                .AddPolicy(Policies.UserOnly,
-                           policy => policy.RequireRole(nameof(Roles.User)));
-
-//CORS POLICY
-//var corsOrigins = builder.Configuration["CORS_ORIGINS"]?
-//    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-//    ?? Array.Empty<string>();
-
-//builder.Services.AddCors(options =>
-//{
-//    options.AddPolicy(CORSPolicies.AllowBlazorClient, policy =>
-//    {
-//        policy.WithOrigins(corsOrigins)
-//              .AllowAnyHeader()
-//              .AllowAnyMethod()
-//              .AllowCredentials();
-//    });
-//});
-
-// Configure JWT Authentication
-//var jwtSettings = builder.Services.SingleOrDefault(x => x.ServiceType == typeof(IOptions<JwtSettings>))?.ImplementationInstance as IOptions<JwtSettings>;
-var secretKey = Encoding.UTF8.GetBytes( jwtSettings["SecretKey"] );// ["SecretKey"]!);
-
-//Adding Authentication and Authorization using https://learn.microsoft.com/en-us/aspnet/core/fundamentals/minimal-apis/security?view=aspnetcore-8.0
-builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-            ValidateIssuer = true,
-            ValidIssuer = jwtSettings["Issuer"],//["Issuer"],
-            ValidateAudience = true,
-            ValidAudience = jwtSettings["Audience"],//["Audience"],
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero,
-
-            // Important for cookie-based auth
-            RequireExpirationTime = true
-        };
-
-        // Allow reading token from HTTP-only cookies
-        options.Events = new JwtBearerEvents
-        {
-            OnMessageReceived = context =>
-            {
-                if (context.Request.Cookies.TryGetValue("jwt_token", out var token))
-                {
-                    context.Token = token;
-                }
-                return Task.CompletedTask;
-            }
-        };
-    });
-
-// Add CORS if needed
+// === CORS POLICIES ===
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CORSPolicies.AllowBlazorClient, policy =>
@@ -128,21 +33,37 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Use DefaultConnection by default, override with env variable in Docker
-var connectionString = builder.Configuration.GetConnectionString("MembershipConnection");
-
-builder.Services.AddDbContext<ASMembershipContext>(options =>
-                                                   options.UseSqlServer(connectionString)
-);
-
+// === APPLICATION BACKGROUND SERVICES ===
 //Add service on host to run background tasks, such as cleaning up expired tokens, sending notifications, etc.
 //builder.Services.AddHostedService<>();
 
-
-
-builder.Services.AddAuthorization();
-
-//builder.Services.AddInfrastructure(builder.Configuration);
+// === SWAGGER WITH AUTH ===
+//builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddSwaggerGen(options =>
+//{
+//    options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+//    {
+//        Name = "Authorization",
+//        Description = "Enter 'Bearer {token}'",
+//        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+//        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+//        Scheme = "Bearer"
+//    });
+//    options.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+//    {
+//        {
+//            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+//            {
+//                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+//                {
+//                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+//                    Id = "Bearer"
+//                }
+//            },
+//            Array.Empty<string>()
+//        }
+//    });
+//});
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -156,6 +77,7 @@ if (app.Environment.IsDevelopment())
 else
 {
     // In production, enforce HTTPS
+    app.UseHsts();
     app.UseHttpsRedirection();
 }
 
@@ -165,7 +87,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 
 // Map endpoints
-RegisterAuthEndpoints.Setup(app);
+AuthEndpoints.Register(app);
 
 //Global CORS policy - can be overridden by specific endpoints if needed
 app.UseCors(CORSPolicies.AllowBlazorClient);
@@ -184,28 +106,4 @@ app.UseAuthorization();
 //    {
 //        logger.LogError(ex, "An error occurred while applying migrations.");
 //    }
-
-//Seed Roles not already there
-//await DataSeeder.SeedRolesAsync(app.Services.GetRequiredService<RoleManager<IdentityRole>>());
-// if(services.GetRequiredService<IHostEnvironment>().IsDevelopment())
-//     await DataSeeder.SeedTestData(services, context);
-
 app.Run();
-
-static class DataSeeder
-{
-    public static async Task SeedRolesAsync(RoleManager<IdentityRole> roleManager)
-    {
-        // Ensure roles exist
-        await EnsureRoleAsync(roleManager, nameof(Roles.Admin));
-        await EnsureRoleAsync(roleManager, nameof(Roles.User));
-    }
-
-    private static async Task EnsureRoleAsync(RoleManager<IdentityRole> roleManager, string roleName)
-    {
-        if (!await roleManager.RoleExistsAsync(roleName))
-        {
-            await roleManager.CreateAsync(new IdentityRole(roleName));
-        }
-    }
-}

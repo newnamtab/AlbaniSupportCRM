@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="AlbaniSupportCRM/API.csproj" />
+  <Project Path="Auth/Auth.csproj" Id="e84f1744-b2b8-4ec8-b130-a4522b53f229" />
+  <Project Path="Storage/Storage.csproj" Id="f5d4bffd-e77c-47c2-b24e-37f8719ed44f" />
   <Project Path="WebApp/WebApp.csproj" Id="c57eaca3-e50c-414d-80a6-fcee191ce058" />
 </Solution>

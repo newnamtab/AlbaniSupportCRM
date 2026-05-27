@@ -1,4 +1,4 @@
-﻿namespace AlbaniSupportCRM.User
+﻿namespace Auth.Policy
 {
     public class Policies
     {

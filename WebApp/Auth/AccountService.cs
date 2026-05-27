@@ -136,6 +136,43 @@ namespace WebApp.Auth
             }
         }
 
+        /// <summary>Register new user</summary>
+        public async Task<AuthResult> RegisterAsync(AddUser model)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
+                {
+                    return AuthResult.FailureResult("Email and password are required", new List<string> { "Validation failed" });
+                }
+
+                _logger.LogInformation($"Registration attempt for: {model.Email}");
+
+                var response = await _httpClient.PostAsJsonAsync("/api/auth/register", model);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    return await HandleErrorResponseAsync(response);
+                }
+
+                var result = await response.Content.ReadAsAsync<RegisterResponse>();
+
+                if (result != null)
+                {
+                    _logger.LogInformation($"Registration successful for: {model.Email}");
+                    return AuthResult.SuccessResult(result.Message);
+                }
+
+                _logger.LogWarning($"Registration failed: {result.Message}");
+                return AuthResult.FailureResult("Registration failed", new List<string> { result?.Message ?? "Unknown error" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during registration");
+                return AuthResult.FailureResult("An error occurred during registration", new List<string> { ex.Message });
+            }
+        }
+
         /// <summary>Login user with credentials</summary>
         public async Task<AuthResult> LoginAsync(Login model)
         {
@@ -193,43 +230,6 @@ namespace WebApp.Auth
             {
                 _logger.LogError(ex, "Error during login");
                 return AuthResult.FailureResult("An error occurred during login", new List<string> { ex.Message }); 
-            }
-        }
-
-        /// <summary>Register new user</summary>
-        public async Task<AuthResult> RegisterAsync(AddUser model)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(model.Email) || string.IsNullOrWhiteSpace(model.Password))
-                {
-                    return AuthResult.FailureResult("Email and password are required", new List<string> { "Validation failed" });
-                }
-
-                _logger.LogInformation($"Registration attempt for: {model.Email}");
-
-                var response = await _httpClient.PostAsJsonAsync("/api/auth/register", model);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    return await HandleErrorResponseAsync(response);
-                }
-
-                var result = await response.Content.ReadAsAsync<RegisterResponse>();
-
-                if (result != null)
-                {
-                    _logger.LogInformation($"Registration successful for: {model.Email}");
-                    return AuthResult.SuccessResult(result.Message);
-                }
-
-                _logger.LogWarning($"Registration failed: {result.Message}");
-                return AuthResult.FailureResult("Registration failed", new List<string> { result?.Message ?? "Unknown error" });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during registration");
-                return AuthResult.FailureResult("An error occurred during registration", new List<string> { ex.Message });
             }
         }
 

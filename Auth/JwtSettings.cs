@@ -1,6 +1,6 @@
-﻿namespace AlbaniSupportCRM.settings
+﻿namespace Auth.Settings
 {
-    public class JwtSettings
+    internal class JwtSettings
     {
         public string SecretKey { get; set; }
         public string Issuer { get; set; }
