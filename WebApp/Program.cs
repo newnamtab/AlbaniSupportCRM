@@ -11,10 +11,11 @@ builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
 // Configure HTTP client with base address
+builder.Services.AddTransient<CookieHandler>();
 builder.Services.AddHttpClient("API", (client) =>
 {
     client.BaseAddress = new Uri(builder.Configuration["apiUrl"]);
-});
+}).AddHttpMessageHandler<CookieHandler>();
 
 builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
