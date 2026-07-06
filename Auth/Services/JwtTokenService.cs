@@ -14,6 +14,7 @@ namespace Auth.Services
     {
         Task<TokenResponse> GenerateTokensAsync(ASMemberUser user);
         string GenerateRefreshToken();
+        ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
     }
     internal class JwtTokenService : IJwtTokenService
     {
@@ -43,17 +44,19 @@ namespace Auth.Services
                 signingCredentials: credentials);
             
             var refreshToken = GenerateRefreshToken();
+            var refreshTokenExpiry = DateTime.UtcNow.AddDays(_jwtSettings.ExpiryDays);
             user.RefreshToken = refreshToken;
-            user.RefreshTokenExpiry = DateTime.UtcNow.AddDays(7);
+            user.RefreshTokenExpiry = refreshTokenExpiry;
             await _userManager.UpdateAsync(user);
-            
+
             return new TokenResponse(
                 new JwtSecurityTokenHandler().WriteToken(token),
                 refreshToken,
                 _jwtSettings.ExpiryMinutes * 60,
+                (int)(refreshTokenExpiry - DateTime.UtcNow).TotalSeconds,
                 roles.FirstOrDefault() );
         }
-        private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+        public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
         {
             var secretKey = Encoding.UTF8.GetBytes(_jwtSettings.SecretKey);
             var tokenValidationParameters = new TokenValidationParameters
@@ -84,6 +87,7 @@ namespace Auth.Services
     public record TokenResponse(
         string AccessToken,
         string RefreshToken,
-        int ExpiresIn,
+        int AccessTokenExpiresIn,
+        int RefreshTokenExpiresIn,
         string? Role);
 }

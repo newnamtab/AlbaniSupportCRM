@@ -77,9 +77,9 @@ namespace Auth.Services
                     user.FirstName,
                     user.LastName,
                     tokens.AccessToken,
-                    tokens.ExpiresIn,
+                    tokens.AccessTokenExpiresIn,
                     tokens.RefreshToken,
-                    tokens.ExpiresIn);
+                    tokens.RefreshTokenExpiresIn);
         }
         public async Task<RefreshTokenResult> RefreshToken(RefreshUserToken request, CancellationToken ct)
         {
@@ -91,8 +91,8 @@ namespace Auth.Services
                 return new RefreshTokenResult(string.Empty, 0, string.Empty, 0);// Results.Unauthorized();
             }
             var tokens = await _tokenService.GenerateTokensAsync(user);
-            return new RefreshTokenResult(tokens.AccessToken, tokens.ExpiresIn,
-                                          tokens.RefreshToken, tokens.ExpiresIn);// Results.Ok(tokens);
+            return new RefreshTokenResult(tokens.AccessToken, tokens.AccessTokenExpiresIn,
+                                          tokens.RefreshToken, tokens.RefreshTokenExpiresIn);// Results.Ok(tokens);
         }
         public async Task<bool> ChangePassword(ChangeUserPassword request)
         {

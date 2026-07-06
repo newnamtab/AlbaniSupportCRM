@@ -90,9 +90,9 @@ namespace API.Auth
             })
             .WithName("Login");
 
-            group.MapPost("/api/auth/refresh-token)", async ( [FromServices] ILogger<Auth> logger,
+            group.MapPost("/refresh-token", async ( [FromServices] ILogger<Auth> logger,
                                                               [FromServices] IAuthenticationService _authenticationService,
-                                                              ClaimsPrincipal userPrincipal,
+                                                              [FromServices] IJwtTokenService _tokenService,
                                                               HttpContext httpContext,
                                                               CancellationToken ct) =>
             {
@@ -101,22 +101,45 @@ namespace API.Auth
                     logger.LogInformation("Token refresh request received");
 
                     // Get refresh token from cookie
-                    if (httpContext.Request.Cookies.TryGetValue(REFRESH_COOKIE_NAME, out var refreshToken) == false)
+                    if (httpContext.Request.Cookies.TryGetValue(REFRESH_COOKIE_NAME, out var refreshToken) == false
+                        || string.IsNullOrEmpty(refreshToken))
                     {
-                        logger.LogWarning("Token not found in cookies");
+                        logger.LogWarning("Refresh token not found in cookies");
                         return Results.Unauthorized();
                     }
-                    //(httpContextAccessor.HttpContext!.Request.Cookies.TryGetValue(JWT_COOKIE_NAME, out var accessToken) == false);
 
-                    var userId = userPrincipal.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    if (httpContext.Request.Cookies.TryGetValue(JWT_COOKIE_NAME, out var accessToken) == false
+                        || string.IsNullOrEmpty(accessToken))
+                    {
+                        logger.LogWarning("Access token not found in cookies");
+                        return Results.Unauthorized();
+                    }
 
-                    if (string.IsNullOrEmpty(userId)
-                        || httpContext.Request.Cookies.TryGetValue(JWT_COOKIE_NAME, out var accessToken)
-                        || string.IsNullOrEmpty(accessToken)) return Results.Unauthorized();
+                    // The access token is expected to be expired (that's the point of refreshing), so
+                    // identify the user from its signature/claims only, ignoring lifetime - relying on
+                    // the ambient ClaimsPrincipal here would never work, since an expired token fails
+                    // JwtBearer authentication and never populates HttpContext.User.
+                    string? userId;
+                    try
+                    {
+                        var expiredPrincipal = _tokenService.GetPrincipalFromExpiredToken(accessToken);
+                        userId = expiredPrincipal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Invalid access token presented for refresh");
+                        return Results.Unauthorized();
+                    }
+
+                    if (string.IsNullOrEmpty(userId))
+                    {
+                        logger.LogWarning("Access token missing user identifier claim");
+                        return Results.Unauthorized();
+                    }
 
                     // Validate refresh token
                     var refreshedTokens = await _authenticationService.RefreshToken(new RefreshUserToken(Guid.Parse(userId), accessToken, refreshToken), ct);
-                    if (userId == null)
+                    if (string.IsNullOrEmpty(refreshedTokens.AccessToken))
                     {
                         logger.LogWarning("Invalid or expired refresh token");
                         return Results.Unauthorized();
@@ -186,21 +209,24 @@ namespace API.Auth
         }
         private static void SetAuthCookies(string accessToken, int accessTokenExpiresInSeconds, string refreshToken, int refreshTokenExpiresInSeconds, HttpContext context)
         {
-            // Access token cookie
+            // Access token cookie - kept alive for as long as the refresh token so an already-expired
+            // (per its own `exp` claim) access token can still be read back from the cookie by
+            // /refresh-token. JwtBearer still enforces accessTokenExpiresInSeconds via the token's own
+            // `exp` claim for every other authenticated request.
             context.Response.Cookies.Append(
                 JWT_COOKIE_NAME,
                 accessToken,
-                GetCookieOptions(accessTokenExpiresInSeconds)
+                AuthCookieOptions(refreshTokenExpiresInSeconds)
             );
 
             // Refresh token cookie (longer expiry)
             context.Response.Cookies.Append(
                 REFRESH_COOKIE_NAME,
                 refreshToken,
-                GetCookieOptions(refreshTokenExpiresInSeconds)
+                AuthCookieOptions(refreshTokenExpiresInSeconds)
             );
         }
-        private static CookieOptions GetCookieOptions(int expiresInSeconds)
+        private static CookieOptions AuthCookieOptions(int expiresInSeconds)
         {
             return new CookieOptions
             {
@@ -213,5 +239,4 @@ namespace API.Auth
         }
     }
 }
-
 
