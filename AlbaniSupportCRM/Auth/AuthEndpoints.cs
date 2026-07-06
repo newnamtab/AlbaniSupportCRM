@@ -80,7 +80,7 @@ namespace API.Auth
                     logger.LogInformation($"Successful login for user: {loggedIn.Email}");
 
                     // Return user info and token expiry (token itself is in the cookie)
-                    return Results.Ok(new LoginResponse(loggedIn.UserId, loggedIn.Email, loggedIn.FirstName, loggedIn.LastName));
+                    return Results.Ok(new LoginResponse(loggedIn.UserId, loggedIn.Email, loggedIn.FirstName, loggedIn.LastName, loggedIn.AccessTokenExpiresIn));
                 }
                 catch (Exception ex)
                 {
@@ -152,7 +152,7 @@ namespace API.Auth
 
                     logger.LogInformation($"Token refreshed for user: {userId}");
 
-                    return Results.Ok();
+                    return Results.Ok(new RefreshTokenResponse(refreshedTokens.AccessTokenExpiresIn));
                 }
                 catch (Exception ex)
                 {

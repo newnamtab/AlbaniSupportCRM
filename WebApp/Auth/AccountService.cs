@@ -41,12 +41,14 @@ namespace WebApp.Auth
         Task ForceTokenRefreshAsync();
     }
 
-    /// <summary>Login response from API</summary>
+    /// <summary>Login response from API (matches API.Auth.Responses.LoginResponse - access token stays in the cookie)</summary>
     public class LoginResponse
     {
-        public string AccessToken { get; set; } = string.Empty;
+        public Guid UserId { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
         public int ExpiresIn { get; set; } // seconds
-        public UserProfile User { get; set; } = UserProfile.Empty;
     }
     public class AuthResult
     {
@@ -66,17 +68,9 @@ namespace WebApp.Auth
             new AuthResult(false, message, errors ?? Array.Empty<string>());
     }
 
-    /// <summary>Register response from API</summary>
-    public class RegisterResponse
-    {
-        public string Message { get; set; } = string.Empty;
-        public User User { get; set; } = User.Empty;
-    }
-
-    /// <summary>Token refresh response from API</summary>
+    /// <summary>Token refresh response from API (matches API.Auth.Responses.RefreshTokenResponse - access token stays in the cookie)</summary>
     public class RefreshTokenResponse
     {
-        public string AccessToken { get; set; } = string.Empty;
         public int ExpiresIn { get; set; }
     }
 
@@ -155,16 +149,8 @@ namespace WebApp.Auth
                     return await HandleErrorResponseAsync(response);
                 }
 
-                var result = await response.Content.ReadAsAsync<RegisterResponse>();
-
-                if (result != null)
-                {
-                    _logger.LogInformation($"Registration successful for: {model.Email}");
-                    return AuthResult.SuccessResult(result.Message);
-                }
-
-                _logger.LogWarning($"Registration failed: {result.Message}");
-                return AuthResult.FailureResult("Registration failed", new List<string> { result?.Message ?? "Unknown error" });
+                _logger.LogInformation($"Registration successful for: {model.Email}");
+                return AuthResult.SuccessResult("Registration successful");
             }
             catch (Exception ex)
             {
@@ -194,21 +180,26 @@ namespace WebApp.Auth
 
                 var result = await response.Content.ReadAsAsync<LoginResponse>();
 
-                if (result.User != null)
+                if (result.UserId != Guid.Empty)
                 {
                     // Set user and decode token claims from JWT in cookie
-                    _currentUser = result.User;
+                    _currentUser = new UserProfile
+                    {
+                        Id = result.UserId,
+                        Email = result.Email,
+                        FirstName = result.FirstName,
+                        LastName = result.LastName
+                    };
 
                     // Build token claims from the response data
                     // Note: Token is in HTTP-only cookie and not accessible from client code
                     // We construct JwtTokenClaims from the returned user data for UI purposes
                     _tokenClaims = new JwtTokenClaims
                     {
-                        UserId = result.User.Id,
-                        Email = result.User.Email,
-                        FirstName = result.User.FirstName,
-                        LastName = result.User.LastName,
-                        Role = result.User.Role,
+                        UserId = result.UserId,
+                        Email = result.Email,
+                        FirstName = result.FirstName,
+                        LastName = result.LastName,
                         IssuedAt = DateTime.UtcNow,
                         ExpiresAt = DateTime.UtcNow.AddSeconds(result.ExpiresIn),
                         Jti = Guid.NewGuid().ToString() // Placeholder - actual JTI is in server token
